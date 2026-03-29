@@ -1,23 +1,13 @@
 {
-  "name": "smart-educational-center",
-  "version": "2.0.0",
-  "description": "Smart Educational Center Management System",
+  "name": "smart-center",
+  "version": "1.0.0",
   "main": "server.js",
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
-  },
+  "scripts": { "start": "node server.js" },
   "dependencies": {
-    "express": "^4.19.2",
-    "googleapis": "^134.0.0",
-    "helmet": "^7.1.0",
+    "express": "^4.18.2",
+    "helmet": "^7.0.0",
     "compression": "^1.7.4",
     "morgan": "^1.10.0",
-    "dotenv": "^16.4.5"
-  },
-  "keywords": ["education", "management", "center"],
-  "license": "MIT"
+    "dotenv": "^16.3.1"
+  }
 }
