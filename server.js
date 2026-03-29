@@ -33,7 +33,7 @@ async function initGoogleAuth() {
         credentials = require('./service-account.json');
         console.log('✅ Using service-account.json');
       } catch (e) {
-        console.log('⚠️ No credentials found - running in demo mode');
+        console.log('⚠️ No credentials - Demo mode');
         return;
       }
     }
@@ -51,12 +51,9 @@ async function initGoogleAuth() {
 
 initGoogleAuth();
 
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
+// Helpers
 const safeStr = (v) => (v == null ? '' : String(v).trim());
 const safeNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
-
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
 async function getRows(sheetName) {
@@ -100,9 +97,7 @@ async function setCell(sheetName, row, col, val) {
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [[val]] }
     });
-  } catch (e) {
-    console.error('setCell error:', e.message);
-  }
+  } catch (e) { console.error('setCell error:', e.message); }
 }
 
 async function appendRow(sheetName, vals) {
@@ -114,9 +109,7 @@ async function appendRow(sheetName, vals) {
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [vals] }
     });
-  } catch (e) {
-    console.error('appendRow error:', e.message);
-  }
+  } catch (e) { console.error('appendRow error:', e.message); }
 }
 
 async function clearRow(sheetName, rowIdx) {
@@ -126,22 +119,13 @@ async function clearRow(sheetName, rowIdx) {
       spreadsheetId: SPREADSHEET_ID,
       range: `${sheetName}!A${rowIdx + 1}:Z${rowIdx + 1}`
     });
-  } catch (e) {
-    console.error('clearRow error:', e.message);
-  }
+  } catch (e) { console.error('clearRow error:', e.message); }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ROUTES
-// ═══════════════════════════════════════════════════════════════
+// Routes
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// ═══════════════════════════════════════════════════════════════
-// LOGIN
-// ═══════════════════════════════════════════════════════════════
+// Login
 app.post('/api/verifyLogin', async (req, res) => {
   try {
     const { role, user, pass } = req.body;
@@ -155,28 +139,20 @@ app.post('/api/verifyLogin', async (req, res) => {
       return res.json({ success: false, message: 'Invalid credentials' });
     }
     
-    // Student login
+    // Student
     const rows = await getRows('بيانات_الطلاب');
     const idx = findRow(rows, 0, user);
     if (idx === -1) return res.json({ success: false, message: 'Student not found' });
     
-    const wa = safeStr(rows[idx][5]); // واتساب ولي الأمر
+    const wa = safeStr(rows[idx][5]);
     if (pass === wa.slice(-4) || pass === '1234') {
-      return res.json({
-        success: true,
-        data: { role: 'student', name: safeStr(rows[idx][1]), id: safeStr(rows[idx][0]) }
-      });
+      return res.json({ success: true, data: { role: 'student', name: safeStr(rows[idx][1]), id: safeStr(rows[idx][0]) } });
     }
-    
     res.json({ success: false, message: 'Invalid code' });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// DASHBOARD
-// ═══════════════════════════════════════════════════════════════
+// Dashboard
 app.get('/api/dashboard', async (req, res) => {
   try {
     const sRows = await getRows('بيانات_الطلاب');
@@ -187,32 +163,24 @@ app.get('/api/dashboard', async (req, res) => {
     const totalRevenue = pRows.slice(1).reduce((sum, r) => sum + safeNum(r[4]), 0);
     const pendingPayments = pRows.slice(1).reduce((sum, r) => sum + Math.max(0, safeNum(r[3]) - safeNum(r[4])), 0);
     
-    // Get today's attendance from current month sheet
+    const today = new Date().toISOString().split('T')[0];
     const currentMonth = MONTHS_AR[new Date().getMonth()];
     const aRows = await getRows(currentMonth);
-    const today = new Date().getDate();
-    const todayCol = today + 4; // العمود المقابل لليوم
+    const day = new Date().getDate();
+    const todayCol = day + 3;
     
-    let presentToday = 0;
-    let absentToday = 0;
+    let presentToday = 0, absentToday = 0;
     aRows.slice(2).forEach(r => {
       const status = safeStr(r[todayCol]);
       if (status === 'ح') presentToday++;
       else if (status === 'غ') absentToday++;
     });
     
-    res.json({
-      success: true,
-      data: { totalStudents, activeStudents, totalRevenue, pendingPayments, presentToday, absentToday }
-    });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+    res.json({ success: true, data: { totalStudents, activeStudents, totalRevenue, pendingPayments, presentToday, absentToday } });
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// STUDENTS
-// ═══════════════════════════════════════════════════════════════
+// Students
 app.get('/api/students', async (req, res) => {
   try {
     const rows = (await getRows('بيانات_الطلاب')).slice(1);
@@ -223,9 +191,7 @@ app.get('/api/students', async (req, res) => {
       joinDate: safeStr(r[10]), status: safeStr(r[11]), notes: safeStr(r[12])
     }));
     res.json({ success: true, data });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
 app.post('/api/students/add', async (req, res) => {
@@ -234,39 +200,29 @@ app.post('/api/students/add', async (req, res) => {
     const rows = await getRows('بيانات_الطلاب');
     const newId = rows.length > 1 ? Math.max(...rows.slice(1).filter(r => r[0]).map(r => parseInt(r[0]) || 0)) + 1 : 1;
     
-    const newRow = [
-      newId, d.name, d.grade, d.subject || 'كيمياء', d.parentName, d.whatsapp,
-      d.phone, '', d.subscription, d.group,
-      new Date().toISOString().split('T')[0], d.status || '✅ نشط', d.notes || ''
-    ];
+    const newRow = [newId, d.name, d.grade, 'كيمياء', d.parentName, d.whatsapp, d.phone, '',
+      d.subscription, d.group, new Date().toLocaleDateString('ar-EG'), d.status || '✅ نشط', d.notes || ''];
     
     await appendRow('بيانات_الطلاب', newRow);
     res.json({ success: true, id: newId });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
 app.post('/api/students/update', async (req, res) => {
   try {
-    const { id, name, grade, whatsapp, phone, group, subscription, status } = req.body;
+    const { id, name, phone, subscription, status } = req.body;
     const rows = await getRows('بيانات_الطلاب');
     const idx = findRow(rows, 0, id);
     if (idx === -1) return res.json({ success: false, message: 'Not found' });
     
     const row = idx + 1;
     if (name) await setCell('بيانات_الطلاب', row, 1, name);
-    if (grade) await setCell('بيانات_الطلاب', row, 2, grade);
-    if (whatsapp) await setCell('بيانات_الطلاب', row, 5, whatsapp);
     if (phone) await setCell('بيانات_الطلاب', row, 6, phone);
-    if (group) await setCell('بيانات_الطلاب', row, 9, group);
-    if (subscription) await setCell('بيانات_الطلاب', row, 8, subscription);
+    if (subscription !== undefined) await setCell('بيانات_الطلاب', row, 8, subscription);
     if (status) await setCell('بيانات_الطلاب', row, 11, status);
     
     res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
 app.post('/api/students/delete', async (req, res) => {
@@ -277,27 +233,20 @@ app.post('/api/students/delete', async (req, res) => {
     if (idx === -1) return res.json({ success: false, message: 'Not found' });
     await clearRow('بيانات_الطلاب', idx);
     res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// PAYMENTS
-// ═══════════════════════════════════════════════════════════════
+// Payments
 app.get('/api/payments', async (req, res) => {
   try {
     const rows = (await getRows('المدفوعات')).slice(1);
     const data = rows.filter(r => r[0]).map(r => ({
       name: safeStr(r[0]), group: safeStr(r[1]), monthYear: safeStr(r[2]),
       subscription: safeStr(r[3]), paid: safeStr(r[4]), notes: safeStr(r[5]),
-      remaining: Math.max(0, safeNum(r[3]) - safeNum(r[4])),
       status: safeNum(r[4]) >= safeNum(r[3]) ? 'مكتمل' : 'غير مكتمل'
     }));
     res.json({ success: true, data });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
 app.post('/api/payments/add', async (req, res) => {
@@ -310,14 +259,10 @@ app.post('/api/payments/add', async (req, res) => {
     const newRow = [studentName, group, `${month} ${year}`, subscription, paid, ''];
     await appendRow('المدفوعات', newRow);
     res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// GRADES
-// ═══════════════════════════════════════════════════════════════
+// Grades
 app.get('/api/grades', async (req, res) => {
   try {
     const rows = (await getRows('الدرجات')).slice(1);
@@ -328,9 +273,7 @@ app.get('/api/grades', async (req, res) => {
       avg: safeStr(r[9]), grade: safeStr(r[10]), notes: safeStr(r[11])
     }));
     res.json({ success: true, data });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
 app.post('/api/grades/update', async (req, res) => {
@@ -352,14 +295,10 @@ app.post('/api/grades/update', async (req, res) => {
     if (grade !== undefined) await setCell('الدرجات', row, 10, grade);
     
     res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// SCHEDULES
-// ═══════════════════════════════════════════════════════════════
+// Schedules
 app.get('/api/schedules', async (req, res) => {
   try {
     const rows = (await getRows('المواعيد')).slice(1);
@@ -369,28 +308,10 @@ app.get('/api/schedules', async (req, res) => {
       status: safeStr(r[6]), notes: safeStr(r[7])
     }));
     res.json({ success: true, data });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
-app.post('/api/schedules/add', async (req, res) => {
-  try {
-    const { day, time, group, subject, teacher } = req.body;
-    const rows = await getRows('المواعيد');
-    const newId = rows.length > 1 ? Math.max(...rows.slice(1).filter(r => r[0]).map(r => parseInt(r[0]) || 0)) + 1 : 1;
-    
-    const newRow = [newId, day, time, group, subject, teacher, 'نشط', ''];
-    await appendRow('المواعيد', newRow);
-    res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// ATTENDANCE
-// ═══════════════════════════════════════════════════════════════
+// Attendance
 app.post('/api/attendance/mark', async (req, res) => {
   try {
     const { studentId, status, date } = req.body;
@@ -402,34 +323,25 @@ app.post('/api/attendance/mark', async (req, res) => {
     const idx = findRow(aRows, 0, studentId);
     
     if (idx === -1) {
-      // Add student row if not exists
       const sRows = await getRows('بيانات_الطلاب');
       const sIdx = findRow(sRows, 0, studentId);
       const studentName = sIdx !== -1 ? safeStr(sRows[sIdx][1]) : '';
       const group = sIdx !== -1 ? safeStr(sRows[sIdx][9]) : '';
       
-      const newRow = [studentId, new Date().getFullYear(), studentName, group];
-      // Fill empty cells up to day column
+      const newRow = [studentId, d.getFullYear(), studentName, group];
       for (let i = 4; i < day + 4; i++) newRow.push('');
       newRow[day + 3] = status === 'حاضر' ? 'ح' : 'غ';
-      
       await appendRow(month, newRow);
     } else {
-      // Update existing row
       const row = idx + 1;
       const col = day + 3;
       await setCell(month, row, col, status === 'حاضر' ? 'ح' : 'غ');
     }
-    
     res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// EXCUSES
-// ═══════════════════════════════════════════════════════════════
+// Excuses
 app.get('/api/excuses', async (req, res) => {
   try {
     const rows = (await getRows('الاعتذارات')).slice(1);
@@ -438,23 +350,7 @@ app.get('/api/excuses', async (req, res) => {
       date: safeStr(r[3]), reason: safeStr(r[4]), status: safeStr(r[5]), reply: safeStr(r[6])
     }));
     res.json({ success: true, data });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
-});
-
-app.post('/api/excuses/add', async (req, res) => {
-  try {
-    const { studentId, studentName, reason } = req.body;
-    const rows = await getRows('الاعتذارات');
-    const newId = rows.length > 1 ? Math.max(...rows.slice(1).filter(r => r[0]).map(r => parseInt(r[0]) || 0)) + 1 : 1;
-    
-    const newRow = [newId, studentId, studentName, new Date().toISOString().split('T')[0], reason, '⏳ قيد المراجعة', ''];
-    await appendRow('الاعتذارات', newRow);
-    res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
 app.post('/api/excuses/update', async (req, res) => {
@@ -470,14 +366,10 @@ app.post('/api/excuses/update', async (req, res) => {
     if (reply) await setCell('الاعتذارات', row, 6, reply);
     
     res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, message: e.message });
-  }
+  } catch (e) { res.json({ success: false, message: e.message }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// STUDENT PORTAL
-// ═══════════════════════════════════════════════════════════════
+// Student Portal
 app.get('/api/student/dashboard', async (req, res) => {
   try {
     const id = req.query.id;
@@ -502,10 +394,8 @@ app.get('/api/student/dashboard', async (req, res) => {
     const avgGrade = gIdx !== -1 ? safeStr(gRows[gIdx][9]) : '-';
     const gradeLabel = gIdx !== -1 ? safeStr(gRows[gIdx][10]) : '-';
     
-    res.json({ success: true, data: { attRate, avgGrade, gradeLabel, present, absent, late } });
-  } catch (e) {
-    res.json({ success: false });
-  }
+    res.json({ success: true, data: { attRate, avgGrade, gradeLabel } });
+  } catch (e) { res.json({ success: false }); }
 });
 
 app.get('/api/student/profile', async (req, res) => {
@@ -514,13 +404,8 @@ app.get('/api/student/profile', async (req, res) => {
     const idx = findRow(rows, 0, req.query.id);
     if (idx === -1) return res.json({ success: false });
     const r = rows[idx];
-    res.json({ success: true, data: {
-      id: r[0], name: r[1], grade: r[2], subject: r[3],
-      parentName: r[4], whatsapp: r[5], phone: r[6], group: r[9], status: r[11]
-    }});
-  } catch (e) {
-    res.json({ success: false });
-  }
+    res.json({ success: true, data: { id: r[0], name: r[1], grade: r[2], group: r[9], phone: r[6] } });
+  } catch (e) { res.json({ success: false }); }
 });
 
 app.get('/api/student/grades', async (req, res) => {
@@ -529,13 +414,8 @@ app.get('/api/student/grades', async (req, res) => {
     const data = rows.filter(r => safeStr(r[0]) === req.query.id);
     if (!data.length) return res.json({ success: true, data: [] });
     const r = data[0];
-    res.json({ success: true, data: [{
-      exam1: r[2], exam2: r[3], exam3: r[4], exam4: r[5],
-      hw1: r[6], hw2: r[7], hw3: r[8], avg: r[9], grade: r[10]
-    }]});
-  } catch (e) {
-    res.json({ success: false });
-  }
+    res.json({ success: true, data: [{ exam1: r[2], exam2: r[3], exam3: r[4], exam4: r[5], hw1: r[6], hw2: r[7], hw3: r[8], avg: r[9], grade: r[10] }] });
+  } catch (e) { res.json({ success: false }); }
 });
 
 app.get('/api/student/payments', async (req, res) => {
@@ -546,52 +426,36 @@ app.get('/api/student/payments', async (req, res) => {
       status: safeNum(r[4]) >= safeNum(r[3]) ? 'مكتمل' : 'غير مكتمل'
     }));
     res.json({ success: true, data });
-  } catch (e) {
-    res.json({ success: false });
-  }
+  } catch (e) { res.json({ success: false }); }
 });
 
 app.get('/api/student/attendance', async (req, res) => {
   try {
     const id = req.query.id;
     const attendance = [];
-    
     for (const month of MONTHS_AR) {
       const rows = await getRows(month);
       const studentRows = rows.slice(2).filter(r => safeStr(r[0]) === id);
-      
       studentRows.forEach(r => {
         for (let i = 4; i < r.length; i++) {
           if (r[i] === 'ح' || r[i] === 'غ' || r[i] === 'ت') {
-            attendance.push({
-              date: `${i - 3} ${month}`,
-              status: r[i] === 'ح' ? 'حاضر' : r[i] === 'غ' ? 'غائب' : 'متأخر'
-            });
+            attendance.push({ date: `${i - 3} ${month}`, status: r[i] === 'ح' ? 'حاضر' : r[i] === 'غ' ? 'غائب' : 'متأخر' });
           }
         }
       });
     }
-    
     res.json({ success: true, data: attendance.reverse().slice(0, 30) });
-  } catch (e) {
-    res.json({ success: false });
-  }
+  } catch (e) { res.json({ success: false }); }
 });
 
 app.get('/api/student/schedules', async (req, res) => {
   try {
     const rows = (await getRows('المواعيد')).slice(1);
-    res.json({ success: true, data: rows.filter(r => r[0]).map(r => ({
-      day: r[1], time: r[2], group: r[3], subject: r[4]
-    }))});
-  } catch (e) {
-    res.json({ success: false });
-  }
+    res.json({ success: true, data: rows.filter(r => r[0]).map(r => ({ day: r[1], time: r[2], subject: r[4] })) });
+  } catch (e) { res.json({ success: false }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// START SERVER
-// ═══════════════════════════════════════════════════════════════
+// Start Server
 app.listen(PORT, () => {
   console.log('═════════════════════════════════════════════════════');
   console.log('🚀 Smart Educational Center');
