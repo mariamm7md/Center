@@ -1,7 +1,7 @@
 {
-  "name": "center-management-system",
-  "version": "1.2.0",
-  "description": "Educational Center Management System with Google Sheets Integration",
+  "name": "smart-educational-center",
+  "version": "2.0.0",
+  "description": "Smart Educational Center Management System with Google Sheets",
   "main": "server.js",
   "engines": {
     "node": ">=18.0.0"
@@ -15,14 +15,17 @@
     "googleapis": "^134.0.0",
     "helmet": "^7.1.0",
     "compression": "^1.7.4",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "qrcode": "^1.5.3",
+    "xlsx": "^0.18.5"
   },
   "keywords": [
     "education",
     "management",
-    "google-sheets-api",
-    "crm"
+    "center",
+    "students",
+    "courses"
   ],
-  "author": "Gemini AI",
+  "author": "Smart Center",
   "license": "MIT"
 }
