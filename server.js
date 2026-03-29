@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Google Apps Script API URL
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnvlHejzKFH3DUGX3LPF8m96W21jzZvK34touTD_e7ktYpv_s9qBvEY_EW2G42WF-X/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhfecD1-mDiMaW0c4wUIvYOx_10wfrD3oRfRCIdA-m2HAjAB5BHTi0oyPdyr_n_a2d/exec';
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -23,36 +23,56 @@ app.use(express.static(path.join(__dirname, 'public')));
 const safeStr = (v) => (v == null ? '' : String(v).trim());
 const safeNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 
-// Generic API call to Apps Script
-async function callAppsScript(action, data = {}) {
+// API Call Functions
+async function callAppsScript(action, params = {}) {
   try {
-    const url = `${APPS_SCRIPT_URL}?action=${action}&${new URLSearchParams(data).toString()}`;
+    const url = `${APPS_SCRIPT_URL}?action=${action}&${new URLSearchParams(params).toString()}`;
+    console.log('GET:', url);
     const res = await fetch(url);
-    return await res.json();
+    const json = await res.json();
+    console.log('Response:', JSON.stringify(json).substring(0, 200));
+    return json;
   } catch (e) {
-    console.error('Apps Script error:', e.message);
+    console.error('GET Error:', e.message);
     return { success: false, message: e.message };
   }
 }
 
-async function postAppsScript(action, data = {}) {
+async function postToAppsScript(action, data = {}) {
   try {
+    const payload = { action, ...data };
+    console.log('POST:', action, JSON.stringify(data).substring(0, 100));
     const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...data })
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
     });
-    return await res.json();
+    const json = await res.json();
+    console.log('Response:', JSON.stringify(json).substring(0, 200));
+    return json;
   } catch (e) {
-    console.error('Apps Script POST error:', e.message);
+    console.error('POST Error:', e.message);
     return { success: false, message: e.message };
   }
 }
 
-// Routes
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// ═══════════════════════════════════════════════════════════════
+// ROUTES
+// ═══════════════════════════════════════════════════════════════
 
-// Login
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Test endpoint
+app.get('/api/test', async (req, res) => {
+  const result = await callAppsScript('test');
+  res.json(result);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════════════════════════════
 app.post('/api/verifyLogin', async (req, res) => {
   try {
     const { role, user, pass } = req.body;
@@ -66,7 +86,7 @@ app.post('/api/verifyLogin', async (req, res) => {
       return res.json({ success: false, message: 'Invalid credentials' });
     }
     
-    // Student - call Apps Script
+    // Student login
     const result = await callAppsScript('verifyLogin', { studentId: user, code: pass });
     res.json(result);
   } catch (e) {
@@ -74,7 +94,9 @@ app.post('/api/verifyLogin', async (req, res) => {
   }
 });
 
-// Dashboard
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/dashboard', async (req, res) => {
   try {
     const result = await callAppsScript('dashboard');
@@ -84,7 +106,9 @@ app.get('/api/dashboard', async (req, res) => {
   }
 });
 
-// Students
+// ═══════════════════════════════════════════════════════════════
+// STUDENTS
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/students', async (req, res) => {
   try {
     const result = await callAppsScript('getStudents');
@@ -96,7 +120,7 @@ app.get('/api/students', async (req, res) => {
 
 app.post('/api/students/add', async (req, res) => {
   try {
-    const result = await postAppsScript('addStudent', req.body);
+    const result = await postToAppsScript('addStudent', req.body);
     res.json(result);
   } catch (e) {
     res.json({ success: false, message: e.message });
@@ -105,7 +129,7 @@ app.post('/api/students/add', async (req, res) => {
 
 app.post('/api/students/update', async (req, res) => {
   try {
-    const result = await postAppsScript('updateStudent', req.body);
+    const result = await postToAppsScript('updateStudent', req.body);
     res.json(result);
   } catch (e) {
     res.json({ success: false, message: e.message });
@@ -114,14 +138,16 @@ app.post('/api/students/update', async (req, res) => {
 
 app.post('/api/students/delete', async (req, res) => {
   try {
-    const result = await postAppsScript('deleteStudent', req.body);
+    const result = await postToAppsScript('deleteStudent', req.body);
     res.json(result);
   } catch (e) {
     res.json({ success: false, message: e.message });
   }
 });
 
-// Payments
+// ═══════════════════════════════════════════════════════════════
+// PAYMENTS
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/payments', async (req, res) => {
   try {
     const result = await callAppsScript('getPayments');
@@ -133,14 +159,16 @@ app.get('/api/payments', async (req, res) => {
 
 app.post('/api/payments/add', async (req, res) => {
   try {
-    const result = await postAppsScript('addPayment', req.body);
+    const result = await postToAppsScript('addPayment', req.body);
     res.json(result);
   } catch (e) {
     res.json({ success: false, message: e.message });
   }
 });
 
-// Grades
+// ═══════════════════════════════════════════════════════════════
+// GRADES
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/grades', async (req, res) => {
   try {
     const result = await callAppsScript('getGrades');
@@ -152,14 +180,16 @@ app.get('/api/grades', async (req, res) => {
 
 app.post('/api/grades/update', async (req, res) => {
   try {
-    const result = await postAppsScript('updateGrade', req.body);
+    const result = await postToAppsScript('updateGrade', req.body);
     res.json(result);
   } catch (e) {
     res.json({ success: false, message: e.message });
   }
 });
 
-// Schedules
+// ═══════════════════════════════════════════════════════════════
+// SCHEDULES
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/schedules', async (req, res) => {
   try {
     const result = await callAppsScript('getSchedules');
@@ -169,17 +199,21 @@ app.get('/api/schedules', async (req, res) => {
   }
 });
 
-// Attendance
+// ═══════════════════════════════════════════════════════════════
+// ATTENDANCE
+// ═══════════════════════════════════════════════════════════════
 app.post('/api/attendance/mark', async (req, res) => {
   try {
-    const result = await postAppsScript('markAttendance', req.body);
+    const result = await postToAppsScript('markAttendance', req.body);
     res.json(result);
   } catch (e) {
     res.json({ success: false, message: e.message });
   }
 });
 
-// Excuses
+// ═══════════════════════════════════════════════════════════════
+// EXCUSES
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/excuses', async (req, res) => {
   try {
     const result = await callAppsScript('getExcuses');
@@ -191,14 +225,16 @@ app.get('/api/excuses', async (req, res) => {
 
 app.post('/api/excuses/update', async (req, res) => {
   try {
-    const result = await postAppsScript('updateExcuse', req.body);
+    const result = await postToAppsScript('updateExcuse', req.body);
     res.json(result);
   } catch (e) {
     res.json({ success: false, message: e.message });
   }
 });
 
-// Student Portal
+// ═══════════════════════════════════════════════════════════════
+// STUDENT PORTAL
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/student/dashboard', async (req, res) => {
   try {
     const result = await callAppsScript('studentDashboard', { id: req.query.id });
@@ -253,12 +289,14 @@ app.get('/api/student/schedules', async (req, res) => {
   }
 });
 
-// Start
+// ═══════════════════════════════════════════════════════════════
+// START SERVER
+// ═══════════════════════════════════════════════════════════════
 app.listen(PORT, () => {
   console.log('═════════════════════════════════════════════════════');
   console.log('🚀 Smart Educational Center');
   console.log('═════════════════════════════════════════════════════');
   console.log(`📡 Port: ${PORT}`);
-  console.log(`🔗 API: ${APPS_SCRIPT_URL}`);
+  console.log(`🔗 API: Connected to Apps Script`);
   console.log('═════════════════════════════════════════════════════');
 });
